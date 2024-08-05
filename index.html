@@ -13,7 +13,7 @@
             <!-- Navbar content -->
              <div class="container-fluid">
                 <a class="navbar-brand" href="#">Note</a>
-                <button type="button" class="btn btn-secondary">New Note</button>
+                <button type="button" class="btn btn-secondary" id="newNote">New Note</button>
                 <a class="navbar-brand" id="api-url">http</a>
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModal">Change API Server</button>
              </div>
@@ -48,6 +48,38 @@
         </div>
       </div>
     
+    <!-- Modal for AddNote -->
+    <div class="modal fade" id="addNoteModal" tabindex="-1" aria-labelledby="AddNote" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addNoteModalTitle">Add Note</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+              <form id="formNewNote">
+                <div class="form-floating">
+                  <input type="text" class="form-control" name="title" id="title">
+                  <label for="title">Title</label>
+                </div>
+                <div class="form-floating">
+                  <input type="text" class="form-control" name="tags" id="tags">
+                  <label for="tags">Tags</label>
+                </div>
+                <div class="form-floating">
+                  <textarea class="form-control" name="body" id="body"></textarea>
+                  <label for="body">Body</label>
+                </div>
+              </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-primary" id="btn-save-note" data-id="">Save changes</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script>
         $('document').ready(function(){
           getNote();
@@ -60,17 +92,89 @@
             $('#exampleModal').modal('hide');
             getNote();
         });
+        $('#newNote').on('click',function(){
+          $('#formNewNote').trigger('reset');
+          $('#addNoteModalTitle').html('Add New Note');
+          $('#btn-save-note').attr('data-id','');
+          $('#addNoteModal').modal('show');
+        });
+        function editNote(id) {
+          $('#formNewNote').trigger('reset');
+          $('#addNoteModalTitle').html(`Edit Note ID ${id}`);
+          
+          // get note detail
+          $.ajax({
+                url: url+'/notes/'+id,
+                type: 'GET',
+                success: function(data) {
+                    const notes = data.data.note;
+                    const {id, title, tags, body, updatedAt, createdAt} = notes;
+                    $('#title').val(title);
+                    $('#tags').val(tags);
+                    $('#body').val(body);
+                    $('#btn-save-note').attr('data-id',id);
+                },
+                error: function() {
+                  $('#notes').html('Tidak Ada data yang ditampilkan');
+                }
 
+            });
+
+          $('#addNoteModal').modal('show');
+        }
+        $('#btn-save-note').on('click', function(){
+            const id = $('#btn-save-note').attr('data-id');
+            let endpoint, method;
+            if (id == '') {
+              endpoint = url+'/notes';
+              method = 'POST';
+            } else {
+              endpoint = url+'/notes/'+id;
+              method = 'PUT';
+            }
+            let formData = $('#formNewNote').serializeArray();
+            let i = 0;
+            let data = {};
+            for (i in formData) {
+              if (formData[i]['name'] == 'tags') {
+                let aryTags = [];
+                dataTags = formData[i]['value'];
+                aryTags = dataTags.split(',');
+                data[formData[i]['name']] = aryTags;
+              }
+              else {
+                data[formData[i]['name']] = formData[i]['value'];
+              }
+            }
+            $.ajax({
+              url: endpoint,
+              type: method,
+              contentType: 'application/json',
+              dataType: 'json',
+              data: JSON.stringify(data),
+              success: function(data) {
+                alert(data.message);
+                getNote();
+                $('#addNoteModal').modal('hide');
+              },
+              error: function(data) {
+                alert("error");
+              }
+            });
+        });
         function getNote() {
             $.ajax({
                 url: url+'/notes',
-                type: "GET",
+                type: 'GET',
                 success: function(data) {
                     const notes = data.data.notes;
-                    console.log(notes);
                     let content = "";
                     for (let i=0; i < notes.length; i++) {
                       const {id, title, tags, body, updatedAt, createdAt} = notes[i];
+                      let contenTags = "";
+                      for (let j=0; j < tags.length; j++) {
+                        contenTags += `<span class="badge rounded-pill text-bg-success">${tags[j]}</span>`;
+                      }
                       content += `
                         <div class="card mt-2">
                           <div class="card-header">
@@ -79,7 +183,9 @@
                           <div class="card-body">
                             <h5 class="card-title">${title}</h5>
                             <p class="card-text">${body}</p>
-                            <a href="#" class="btn btn-primary">Detail</a>
+                            <p></p>
+                            <p class="card-text">Tags: ${contenTags}</p>
+                            <button type="button" class="btn btn-primary" id="btndetail" onClick="detailNote('${id}')">Detail</button>
                           </div>
                         </div>
                       `;
@@ -89,6 +195,61 @@
                 },
                 error: function() {
                   $('#notes').html('Tidak Ada data yang ditampilkan');
+                }
+
+            });
+        }
+
+
+        function detailNote(id) {
+          
+          $.ajax({
+                url: url+'/notes/'+id,
+                type: 'GET',
+                success: function(data) {
+                    const notes = data.data.note;
+                    const {id, title, tags, body, updatedAt, createdAt} = notes;
+                    const  content = `
+                        <div class="card mt-2">
+                          <div class="card-header">
+                            Detail Catatan ID = ${id}
+                          </div>
+                          <div class="card-body">
+                            <h5 class="card-title">${title}</h5>
+                            <p class="card-text">${body}</p>
+                            <p></p>
+                            <p class="card-text">Tags: ${tags}</p>
+                            <p></p>
+                            Created At: ${createdAt}<br>
+                            Updated At: ${updatedAt}<br>
+                            <p></p>
+                            <button type="button" class="btn btn-primary" id="btndetail" onClick="getNote()">All Notes</button>
+                            <button type="button" class="btn btn-info" id="btnedit" onClick="editNote('${id}')">Edit Notes</button>
+                            <button type="button" class="btn btn-danger" id="btndelete" onClick="deleteNote('${id}')">Delete Notes</button>
+                          </div>
+                        </div>
+                      `;
+                    $('#notes').html(content);
+                },
+                error: function() {
+                  $('#notes').html('Tidak Ada data yang ditampilkan');
+                }
+
+            });
+        }
+
+        
+
+        function deleteNote(id) {
+          $.ajax({
+                url: url+'/notes/'+id,
+                type: 'DELETE',
+                success: function(data) {
+                  alert(data.message);
+                  getNote();
+                },
+                error: function() {
+                  $('#notes').html('Catatan Gagal di hapus');
                 }
 
             });
