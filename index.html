@@ -49,6 +49,9 @@
       </div>
     
     <script>
+        $('document').ready(function(){
+          getNote();
+        });
         let url = 'http://localhost:3000';
         $('#api-url').text(url);
         $('#btn-save').on('click',function(){
